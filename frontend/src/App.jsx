@@ -3,8 +3,8 @@ import './index.css'
 
 const API_BASE = 'http://127.0.0.1:8000/api'
 const fallbackPhotos = [
-  { id: 'one', title: 'Golden Hour', location: 'Kampala, Uganda', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=88' },
-  { id: 'two', title: 'The Vow', location: 'Entebbe, Uganda', image: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=88' },
+  { id: 'leeds-markets', title: 'Leeds Markets', location: 'Leeds, United Kingdom', image: '/IMG_7305_edited.jpg' },
+  { id: 'city-passage', title: 'City Passage', location: 'Leeds, United Kingdom', image: '/IMG_7307_edited.jpg' },
   { id: 'three', title: 'In Motion', location: 'Kampala, Uganda', image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=88' },
   { id: 'four', title: 'Quiet Places', location: 'Fort Portal, Uganda', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=88' },
 ]
