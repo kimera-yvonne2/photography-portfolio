@@ -5,8 +5,8 @@ const API_BASE = 'http://127.0.0.1:8000/api'
 const fallbackPhotos = [
   { id: 'leeds-markets', title: 'Leeds Markets', location: 'Leeds, United Kingdom', image: '/IMG_7305_edited.jpg' },
   { id: 'city-passage', title: 'City Passage', location: 'Leeds, United Kingdom', image: '/IMG_7307_edited.jpg' },
-  { id: 'three', title: 'In Motion', location: 'Kampala, Uganda', image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=88' },
-  { id: 'four', title: 'Quiet Places', location: 'Fort Portal, Uganda', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=88' },
+  { id: 'merrion-house', title: 'Merrion House', location: 'Leeds, United Kingdom', image: '/IMG_8058_edited.jpg' },
+  { id: 'city-church', title: 'City Church', location: 'Leeds, United Kingdom', image: '/IMG_8053_edited.jpg' },
 ]
 const Arrow = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
 
@@ -30,7 +30,7 @@ function App() {
 
     <main id="top">
       <section className="hero">
-        <img className="hero-image" src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=2200&q=90" alt="Fashion portrait by Shots by Pato" />
+        <img className="hero-image" src="/IMG_8058_edited.jpg" alt="Black-and-white street scene in Leeds by Shots by Pato" />
         <div className="hero-shade" />
         <div className="hero-copy"><p className="eyebrow">Portrait · Wedding · Lifestyle</p><h1>Stories, told<br />in <em>light.</em></h1><p className="hero-intro">Honest photographs for the wildly in love, the quietly bold, and every beautiful moment in between.</p><button className="text-link light" onClick={() => scrollTo('#work')}>Explore the work <Arrow /></button></div>
         <div className="hero-meta"><span>Based in Kampala</span><span>Available worldwide</span></div>
