@@ -1,9 +1,64 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 from django.core.mail import send_mail
 from .models import Photo, Category, Album, ContactMessage, SiteProfile
 from .forms import ContactForm
+
+
+def serialize_photo(request, photo):
+    return {
+        'id': photo.pk,
+        'title': photo.title,
+        'slug': photo.slug,
+        'location': photo.location,
+        'description': photo.description,
+        'image': request.build_absolute_uri(photo.image.url),
+        'thumbnail': (
+            request.build_absolute_uri(photo.thumbnail.url)
+            if photo.thumbnail else None
+        ),
+        'category': photo.category.name if photo.category else None,
+        'tags': [tag.strip() for tag in photo.tags.split(',') if tag.strip()],
+        'camera': photo.camera,
+        'lens': photo.lens,
+        'aperture': photo.aperture,
+        'shutter_speed': photo.shutter_speed,
+        'iso': photo.iso,
+        'is_featured': photo.is_featured,
+        'taken_at': photo.taken_at.isoformat() if photo.taken_at else None,
+    }
+
+
+@require_GET
+def api_health(request):
+    return JsonResponse({'status': 'ok'})
+
+
+@require_GET
+def api_photo_list(request):
+    photos = Photo.objects.filter(is_published=True).select_related('category')
+    featured = request.GET.get('featured')
+    if featured and featured.lower() in {'1', 'true', 'yes'}:
+        photos = photos.filter(is_featured=True)
+    elif featured and featured.lower() in {'0', 'false', 'no'}:
+        photos = photos.filter(is_featured=False)
+    photos = photos.order_by('order', '-created_at')
+    return JsonResponse(
+        [serialize_photo(request, photo) for photo in photos],
+        safe=False,
+    )
+
+
+@require_GET
+def api_photo_detail(request, photo_id):
+    photo = get_object_or_404(
+        Photo.objects.select_related('category'),
+        pk=photo_id,
+        is_published=True,
+    )
+    return JsonResponse(serialize_photo(request, photo))
 
 def home(request):
     featured_photos = Photo.objects.filter(is_featured=True, is_published=True).order_by('-created_at')[:5]
