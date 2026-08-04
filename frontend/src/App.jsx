@@ -1,57 +1,129 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './index.css'
 
-const API_BASE = 'http://127.0.0.1:8000/api'
-const fallbackPhotos = [
-  { id: 'leeds-markets', title: 'Leeds Markets', location: 'Leeds, United Kingdom', image: '/IMG_7305_edited.jpg' },
-  { id: 'city-passage', title: 'City Passage', location: 'Leeds, United Kingdom', image: '/IMG_7307_edited.jpg' },
-  { id: 'merrion-house', title: 'Merrion House', location: 'Leeds, United Kingdom', image: '/IMG_8058_edited.jpg' },
-  { id: 'city-church', title: 'City Church', location: 'Leeds, United Kingdom', image: '/IMG_8053_edited.jpg' },
+const images = [
+  ['IMG_8058_edited.jpg', 'City rhythm', 'Street'], ['IMG_8054_edited.jpg', 'Urban canvas', 'Street'], ['IMG_8053_edited.jpg', 'Under northern skies', 'Street'],
+  ['IMG_7305_edited.jpg', 'Leeds in gold', 'Street'], ['IMG_7307_edited.jpg', 'Through the passage', 'Street'], ['IMG_8107.JPG', 'By the water', 'Portraits'],
+  ['IMG_8109.JPG', 'Summer light', 'Portraits'], ['IMG_8114.JPG', 'In the moment', 'Portraits'], ['IMG_7933.JPG', 'After dark', 'Nightlife'],
+  ['IMG_7925.JPG', 'Main character', 'Nightlife'], ['IMG_7955.JPG', 'Together', 'Nightlife'], ['IMG_7911.JPG', 'Yellow after midnight', 'Nightlife'],
+  ['IMG_7910.JPG', 'Night stance', 'Nightlife'], ['IMG_7906.JPG', 'Flash portrait I', 'Nightlife'], ['IMG_7904.JPG', 'Call it a night', 'Nightlife'],
+  ['IMG_7898.JPG', 'Inside out', 'Nightlife'], ['IMG_7868.JPG', 'Peace', 'Nightlife'], ['IMG_7811_edited.jpg', 'Joy, unposed', 'Nightlife'],
+  ['IMG_7627_edited.jpg', 'Garden portrait I', 'Portraits'], ['IMG_7622_edited.jpg', 'Garden portrait II', 'Portraits'], ['IMG_7617_edited.jpg', 'Garden portrait III', 'Portraits'],
+  ['IMG_7599_edited.jpg', 'Between moments', 'Portraits'], ['IMG_7590_edited.jpg', 'Quiet study', 'Portraits'], ['IMG_7335.JPG', 'Arcade portrait I', 'Portraits'],
+  ['IMG_7334.JPG', 'Arcade portrait II', 'Portraits'], ['IMG_7332.JPG', 'Arcade portrait III', 'Portraits'], ['IMG_7321.JPG', 'The gallery', 'Street'],
+  ['IMG_7721.JPG', 'Good company I', 'Gatherings'], ['IMG_7724.JPG', 'Good company II', 'Gatherings'], ['IMG_7720 (1).JPG', 'All together', 'Gatherings'],
+  ['IMG_7720.JPG', 'The whole crew', 'Gatherings'], ['IMG_7717 (1).JPG', 'Three of us', 'Gatherings'], ['IMG_7717.JPG', 'Friends in frame', 'Gatherings'],
+  ['IMG_7669.jpg', 'Old friends', 'Gatherings'], ['IMG_7661.JPG', 'At home I', 'Gatherings'], ['IMG_7660.JPG', 'At home II', 'Gatherings'],
+  ['IMG_7644.JPG', 'Seated portrait I', 'Gatherings'], ['IMG_7636.JPG', 'Seated portrait II', 'Gatherings'], ['IMG_7635.JPG', 'The observer', 'Gatherings'],
+  ['IMG_7743.JPG', 'Soft focus I', 'Experiments'], ['IMG_7742.JPG', 'Soft focus II', 'Experiments'], ['IMG_7739.JPG', 'Soft focus III', 'Experiments'],
+  ['IMG_7736.jpg', 'Close encounter', 'Experiments'], ['IMG_7914.JPG', 'The eagle', 'Nightlife'],
+].map(([file, title, category], id) => ({ id, file, title, category, src: `/${encodeURIComponent(file)}` }))
+
+const categories = ['All', 'Portraits', 'Street', 'Nightlife', 'Gatherings', 'Experiments']
+const categoryCovers = [
+  { name: 'Portraits', image: 'IMG_7622_edited.jpg', note: 'People, presence & personality' },
+  { name: 'Street', image: 'IMG_8058_edited.jpg', note: 'Architecture, movement & city life' },
+  { name: 'Nightlife', image: 'IMG_7933.JPG', note: 'After-dark portraits & energy' },
+  { name: 'Gatherings', image: 'IMG_7720.JPG', note: 'Friends, celebrations & connection' },
+  { name: 'Experiments', image: 'IMG_7739.JPG', note: 'Soft focus & playful studies' },
 ]
-const Arrow = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
+
+const Arrow = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M14 6l6 6-6 6" /></svg>
 
 function App() {
-  const [photos, setPhotos] = useState(fallbackPhotos)
+  const [filter, setFilter] = useState('All')
+  const [active, setActive] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  useEffect(() => {
-    fetch(`${API_BASE}/photos/`).then((res) => res.ok ? res.json() : Promise.reject()).then((data) => data.length && setPhotos(data.slice(0, 4))).catch(() => {})
-  }, [])
-  const scrollTo = (id) => { document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' }); setMenuOpen(false) }
+  const visible = useMemo(() => filter === 'All' ? images : images.filter((image) => image.category === filter), [filter])
 
-  return <div className="site-shell">
+  const move = (direction) => {
+    if (!active) return
+    const index = visible.findIndex((item) => item.id === active.id)
+    setActive(visible[(index + direction + visible.length) % visible.length])
+  }
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape') setActive(null)
+      if (event.key === 'ArrowRight') move(1)
+      if (event.key === 'ArrowLeft') move(-1)
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.classList.toggle('no-scroll', Boolean(active))
+    return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll') }
+  })
+
+  return <div className="site-shell" id="top">
     <header className="nav-wrap">
-      <a className="brand" href="#top" aria-label="Shots by Pato home"><span className="brand-mark">SP</span><span>Shots by Pato</span></a>
+      <a className="brand" href="#top"><span className="brand-mark">SP</span><span>Shots by Pato</span></a>
       <nav className={menuOpen ? 'nav-links open' : 'nav-links'} aria-label="Main navigation">
-        <a href="#work" onClick={() => setMenuOpen(false)}>Portfolio</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
-        <button className="nav-cta" onClick={() => scrollTo('#contact')}>Book a session</button>
+        <a href="#work" onClick={() => setMenuOpen(false)}>Work</a>
+        <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
+        <a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
       </nav>
-      <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation" aria-expanded={menuOpen}><span /><span /></button>
+      <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu"><span /><span /></button>
     </header>
 
-    <main id="top">
+    <main>
       <section className="hero">
-        <img className="hero-image" src="/IMG_8058_edited.jpg" alt="Black-and-white street scene in Leeds by Shots by Pato" />
-        <div className="hero-shade" />
-        <div className="hero-copy"><p className="eyebrow">Portrait · Wedding · Lifestyle</p><h1>Stories, told<br />in <em>light.</em></h1><p className="hero-intro">Honest photographs for the wildly in love, the quietly bold, and every beautiful moment in between.</p><button className="text-link light" onClick={() => scrollTo('#work')}>Explore the work <Arrow /></button></div>
-        <div className="hero-meta"><span>Based in Kampala</span><span>Available worldwide</span></div>
-        <button className="scroll-cue" onClick={() => scrollTo('#work')} aria-label="Scroll to portfolio"><span>Scroll</span><i /></button>
+        <img src="/IMG_8058_edited.jpg" alt="Black and white Leeds street scene" />
+        <div className="hero-wash" />
+        <div className="hero-copy">
+          <p className="eyebrow">Portrait · Street · Life</p>
+          <h1>Life,<br /><em>in frame.</em></h1>
+          <p className="hero-note">Honest portraits and restless city stories—photographed with warmth, instinct, and a love for the in-between.</p>
+          <a className="text-link light" href="#work">Explore the archive <Arrow /></a>
+        </div>
+        <div className="hero-side">Kampala · Leeds · Everywhere</div>
       </section>
 
-      <section className="intro" id="about">
-        <div className="section-index">01 / The story</div>
-        <div className="intro-copy"><p className="eyebrow dark">Meet the artist</p><h2>I photograph the way a moment <em>feels</em>—not just how it looks.</h2><div className="intro-detail"><p>Hi, I'm Pato. A visual storyteller drawn to real connection, rich color, and the kind of moments that happen when you forget the camera is there.</p><a className="text-link" href="#contact">More about my approach <Arrow /></a></div></div>
+      <section className="manifesto" id="about">
+        <p className="section-no">01 / About the work</p>
+        <div><p className="eyebrow accent">Behind the lens</p><h2>People as they are.<br />Places as they <em>feel.</em></h2></div>
+        <p className="manifesto-copy">I’m Pato, a photographer drawn to character, connection, and the energy of everyday life. My work lives between documentary and portraiture—considered, but never over-polished.</p>
       </section>
 
-      <section className="work" id="work">
-        <div className="work-heading"><div><p className="eyebrow dark">Selected stories</p><h2>Recent work</h2></div><p>A collection of celebrations, connections, and everything worth remembering.</p></div>
-        <div className="photo-grid">{photos.map((photo, index) => <article className={`photo-card card-${index + 1}`} key={photo.id}><img src={photo.image} alt={photo.title || 'Photography by Pato'} /><div className="photo-overlay"><span>{photo.location || 'Uganda'}</span><h3>{photo.title || 'Untitled story'}</h3></div></article>)}</div>
-        <a className="all-work" href="#contact">View the full portfolio <Arrow /></a>
+      <section className="portfolio" id="work">
+        <div className="portfolio-head">
+          <div><p className="eyebrow accent">02 / Selected archive</p><h2>The work</h2></div>
+          <p>{filter === 'All' ? 'Choose a collection' : `${visible.length.toString().padStart(2, '0')} photographs`}</p>
+        </div>
+        <div className="filters" role="group" aria-label="Filter photographs">
+          {categories.map((category) => <button key={category} className={filter === category ? 'active' : ''} onClick={() => setFilter(category)}>{category}</button>)}
+        </div>
+        {filter === 'All' ? <div className="collection-grid">
+          {categoryCovers.map((collection, index) => <button className="collection-card" key={collection.name} onClick={() => setFilter(collection.name)}>
+            <img src={`/${encodeURIComponent(collection.image)}`} alt={`${collection.name} collection`} />
+            <span className="collection-shade" />
+            <span className="collection-copy"><i>0{index + 1} / Collection</i><strong>{collection.name}</strong><small>{collection.note}</small><b>View collection <Arrow /></b></span>
+          </button>)}
+        </div> : <>
+          <button className="back-to-collections" onClick={() => setFilter('All')}>← Back to collections</button>
+          <div className="gallery">
+            {visible.map((image, index) => <button className={`gallery-item item-${index % 7}`} key={image.id} onClick={() => setActive(image)} aria-label={`Open ${image.title}`}>
+              <img src={image.src} alt={image.title} loading={index < 5 ? 'eager' : 'lazy'} />
+              <span className="image-caption"><i>{image.category}</i><strong>{image.title}</strong></span>
+            </button>)}
+          </div>
+        </>}
       </section>
 
-      <section className="quote-band"><p className="eyebrow">A note from behind the lens</p><blockquote>“The best photographs feel like a memory you can hold.”</blockquote><span>— Pato</span></section>
-      <section className="contact" id="contact"><p className="eyebrow dark">Let's make something beautiful</p><div className="contact-row"><h2>Have a story<br />to <em>tell?</em></h2><div><p>Tell me what you're dreaming up. I’d love to hear about your day, your people, and the moments you want to keep forever.</p><a className="contact-button" href="mailto:hello@shotsbypato.com">Start a conversation <Arrow /></a></div></div></section>
+      <section className="contact" id="contact">
+        <p className="eyebrow">Available for portraits, events & stories</p>
+        <h2>Let’s make something<br /><em>worth keeping.</em></h2>
+        <a href="mailto:hello@shotsbypato.com" className="contact-link">hello@shotsbypato.com <Arrow /></a>
+      </section>
     </main>
-    <footer><a className="brand footer-brand" href="#top"><span className="brand-mark">SP</span><span>Shots by Pato</span></a><p>Portraits, weddings & stories<br />Kampala, Uganda · Worldwide</p><div className="socials"><a href="#instagram">Instagram</a><a href="mailto:hello@shotsbypato.com">Email</a></div><small>© {new Date().getFullYear()} Shots by Pato</small></footer>
+
+    <footer><a className="brand" href="#top"><span className="brand-mark">SP</span><span>Shots by Pato</span></a><span>© {new Date().getFullYear()}</span><span>Kampala · Available worldwide</span></footer>
+
+    {active && <div className="lightbox" role="dialog" aria-modal="true" aria-label={active.title} onClick={() => setActive(null)}>
+      <button className="lightbox-close" onClick={() => setActive(null)} aria-label="Close">Close ×</button>
+      <button className="lightbox-arrow prev" onClick={(event) => { event.stopPropagation(); move(-1) }} aria-label="Previous photograph">←</button>
+      <figure onClick={(event) => event.stopPropagation()}><img src={active.src} alt={active.title} /><figcaption><span>{active.category}</span><strong>{active.title}</strong></figcaption></figure>
+      <button className="lightbox-arrow next" onClick={(event) => { event.stopPropagation(); move(1) }} aria-label="Next photograph">→</button>
+    </div>}
   </div>
 }
+
 export default App
