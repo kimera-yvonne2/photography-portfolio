@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import './index.css'
+import { loadProfile } from './content'
+import StudioEditor from './pages/StudioEditor'
+import { getCustomPhotos, prepareBasePhotos } from './photoStore'
 
 const images = [
   ['IMG_8058_edited.jpg', 'City rhythm', 'Street'], ['IMG_8054_edited.jpg', 'Urban canvas', 'Street'], ['IMG_8053_edited.jpg', 'Under northern skies', 'Street'],
@@ -31,10 +35,15 @@ const categoryCovers = [
 const Arrow = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M14 6l6 6-6 6" /></svg>
 
 function App() {
+  const { pathname } = useLocation()
+  const [profile] = useState(loadProfile)
   const [filter, setFilter] = useState('All')
   const [active, setActive] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const visible = useMemo(() => filter === 'All' ? images : images.filter((image) => image.category === filter), [filter])
+  const [portfolioImages, setPortfolioImages] = useState(() => prepareBasePhotos(images))
+  const visible = useMemo(() => filter === 'All' ? portfolioImages : portfolioImages.filter((image) => image.category === filter), [filter, portfolioImages])
+
+  useEffect(() => { getCustomPhotos().then((custom) => setPortfolioImages([...prepareBasePhotos(images), ...custom])).catch(() => {}) }, [])
 
   const move = (direction) => {
     if (!active) return
@@ -53,13 +62,19 @@ function App() {
     return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll') }
   })
 
+  if (pathname === '/studio' || pathname === '/editor') return <StudioEditor baseImages={images} />
+
   return <div className="site-shell" id="top">
     <header className="nav-wrap">
-      <a className="brand" href="#top"><span className="brand-mark">SP</span><span>Shots by Pato</span></a>
+      <a className="brand" href="#top"><span className="brand-mark">{profile.initials}</span><span>{profile.brandName}</span></a>
       <nav className={menuOpen ? 'nav-links open' : 'nav-links'} aria-label="Main navigation">
-        <a href="#work" onClick={() => setMenuOpen(false)}>Work</a>
+        <a href="#top" onClick={() => setMenuOpen(false)}>Work</a>
+        <a href="#collections" onClick={() => setMenuOpen(false)}>Collections</a>
         <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
-        <a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
+        <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+        <a href="#testimonials" onClick={() => setMenuOpen(false)}>Testimonials</a>
+        <a className="nav-book" href="#book" onClick={() => setMenuOpen(false)}>Book</a>
+        <a href="#contract" onClick={() => setMenuOpen(false)}>Contract</a>
       </nav>
       <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu"><span /><span /></button>
     </header>
@@ -69,21 +84,21 @@ function App() {
         <img src="/IMG_8058_edited.jpg" alt="Black and white Leeds street scene" />
         <div className="hero-wash" />
         <div className="hero-copy">
-          <p className="eyebrow">Portrait · Street · Life</p>
-          <h1>Life,<br /><em>in frame.</em></h1>
-          <p className="hero-note">Honest portraits and restless city stories—photographed with warmth, instinct, and a love for the in-between.</p>
-          <a className="text-link light" href="#work">Explore the archive <Arrow /></a>
+          <p className="eyebrow">{profile.heroEyebrow}</p>
+          <h1>{profile.heroTitle}<br /><em>{profile.heroAccent}</em></h1>
+          <p className="hero-note">{profile.heroDescription}</p>
+          <a className="text-link light" href="#collections">Explore the archive <Arrow /></a>
         </div>
-        <div className="hero-side">Kampala · Leeds · Everywhere</div>
+        <div className="hero-side">{profile.locations}</div>
       </section>
 
       <section className="manifesto" id="about">
         <p className="section-no">01 / About the work</p>
-        <div><p className="eyebrow accent">Behind the lens</p><h2>People as they are.<br />Places as they <em>feel.</em></h2></div>
-        <p className="manifesto-copy">I’m Pato, a photographer drawn to character, connection, and the energy of everyday life. My work lives between documentary and portraiture—considered, but never over-polished.</p>
+        <div><p className="eyebrow accent">Behind the lens · {profile.photographerName}</p><h2>{profile.aboutTitle}<br /><em>{profile.aboutAccent}</em></h2></div>
+        <p className="manifesto-copy">{profile.bio}</p>
       </section>
 
-      <section className="portfolio" id="work">
+      <section className="portfolio" id="collections">
         <div className="portfolio-head">
           <div><p className="eyebrow accent">02 / Selected archive</p><h2>The work</h2></div>
           <p>{filter === 'All' ? 'Choose a collection' : `${visible.length.toString().padStart(2, '0')} photographs`}</p>
@@ -108,14 +123,42 @@ function App() {
         </>}
       </section>
 
-      <section className="contact" id="contact">
-        <p className="eyebrow">Available for portraits, events & stories</p>
-        <h2>Let’s make something<br /><em>worth keeping.</em></h2>
-        <a href="mailto:hello@shotsbypato.com" className="contact-link">hello@shotsbypato.com <Arrow /></a>
+      <section className="pricing" id="pricing">
+        <div className="pricing-head"><p className="eyebrow accent">03 / Investment</p><h2>Choose your<br /><em>kind of story.</em></h2><p>Every session is shaped around you. These starting points can be tailored to the scale, location, and rhythm of your plans.</p></div>
+        <div className="pricing-grid">
+          <article><span>01</span><h3>Portraits</h3><p>Individual, couple, graduation, or creative portrait sessions in a location that feels like you.</p><strong>From £150</strong><a href="#book">Enquire <Arrow /></a></article>
+          <article><span>02</span><h3>Events</h3><p>Natural, energetic coverage of celebrations, dinners, launches, and the people who make them matter.</p><strong>From £300</strong><a href="#book">Enquire <Arrow /></a></article>
+          <article><span>03</span><h3>Commissions</h3><p>Editorial, brand, travel, and longer-form stories built around a considered creative brief.</p><strong>Custom quote</strong><a href="#book">Start a brief <Arrow /></a></article>
+        </div>
+      </section>
+
+      <section className="testimonials" id="testimonials">
+        <div className="testimonials-head">
+          <p className="eyebrow accent">04 / Client notes</p>
+          <h2>Kind words from<br /><em>behind the photographs.</em></h2>
+        </div>
+        <div className="testimonial-grid">
+          {[
+            [profile.testimonial1Quote, profile.testimonial1Name, profile.testimonial1Service],
+            [profile.testimonial2Quote, profile.testimonial2Name, profile.testimonial2Service],
+            [profile.testimonial3Quote, profile.testimonial3Name, profile.testimonial3Service],
+          ].map(([quote, name, service], index) => <blockquote className="testimonial-card" key={name}>
+            <span>0{index + 1}</span>
+            <p>“{quote}”</p>
+            <footer><strong>{name}</strong><small>{service}</small></footer>
+          </blockquote>)}
+        </div>
+      </section>
+
+      <section className="contact" id="book">
+        <p className="eyebrow">{profile.availability}</p>
+        <h2>{profile.contactTitle}<br /><em>{profile.contactAccent}</em></h2>
+        <a href={`mailto:${profile.email}`} className="contact-link">{profile.email} <Arrow /></a>
+        <div className="contract-note" id="contract"><span>Ready for the details?</span><p>Once your date and scope are confirmed, request the photography agreement to review deliverables, usage, payment, and cancellation terms.</p><a href={`mailto:${profile.email}?subject=Photography contract request`}>Request contract <Arrow /></a></div>
       </section>
     </main>
 
-    <footer><a className="brand" href="#top"><span className="brand-mark">SP</span><span>Shots by Pato</span></a><span>© {new Date().getFullYear()}</span><span>Kampala · Available worldwide</span></footer>
+    <footer><a className="brand" href="#top"><span className="brand-mark">{profile.initials}</span><span>{profile.brandName}</span></a><span>© {new Date().getFullYear()}</span><span>{profile.locations}</span></footer>
 
     {active && <div className="lightbox" role="dialog" aria-modal="true" aria-label={active.title} onClick={() => setActive(null)}>
       <button className="lightbox-close" onClick={() => setActive(null)} aria-label="Close">Close ×</button>
