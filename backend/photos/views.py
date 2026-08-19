@@ -1,7 +1,11 @@
+import json
+
 from django.shortcuts import render, get_object_or_404
+from django.conf import settings
 from django.core.paginator import Paginator
 from django.http import JsonResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
 from django.core.mail import send_mail
 from .models import Photo, Category, Album, ContactMessage, SiteProfile
 from .forms import ContactForm
@@ -59,6 +63,32 @@ def api_photo_detail(request, photo_id):
         is_published=True,
     )
     return JsonResponse(serialize_photo(request, photo))
+
+
+@csrf_exempt
+@require_POST
+def api_contact(request):
+    try:
+        payload = json.loads(request.body or '{}')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'errors': {'__all__': ['Invalid JSON body.']}}, status=400)
+
+    form = ContactForm(payload)
+    if not form.is_valid():
+        return JsonResponse({'errors': form.errors.get_json_data()}, status=400)
+
+    contact_message = form.save()
+    send_mail(
+        subject=f"Portfolio enquiry: {contact_message.subject}",
+        message=(
+            f"From: {contact_message.name} <{contact_message.email}>\n\n"
+            f"{contact_message.message}"
+        ),
+        from_email=None,
+        recipient_list=[settings.CONTACT_RECIPIENT_EMAIL],
+        fail_silently=True,
+    )
+    return JsonResponse({'status': 'ok', 'id': contact_message.pk}, status=201)
 
 def home(request):
     featured_photos = Photo.objects.filter(is_featured=True, is_published=True).order_by('-created_at')[:5]

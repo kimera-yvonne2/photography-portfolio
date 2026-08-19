@@ -2,7 +2,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Photo
+from .models import ContactMessage, Photo
 
 
 GIF_IMAGE = (
@@ -48,3 +48,41 @@ class PhotoApiTests(TestCase):
             reverse('photo-api:photo-detail', kwargs={'photo_id': photo.id})
         )
         self.assertEqual(response.status_code, 404)
+
+
+class ContactApiTests(TestCase):
+    def test_valid_message_is_saved(self):
+        response = self.client.post(
+            reverse('photo-api:contact'),
+            data={
+                'name': 'Amina',
+                'email': 'amina@example.com',
+                'subject': 'Portrait session',
+                'message': 'I would like to discuss a session in Kampala.',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['status'], 'ok')
+        self.assertTrue(ContactMessage.objects.filter(email='amina@example.com').exists())
+
+    def test_invalid_message_returns_field_errors(self):
+        response = self.client.post(
+            reverse('photo-api:contact'),
+            data={'name': '', 'email': 'not-an-email', 'subject': '', 'message': ''},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('email', response.json()['errors'])
+        self.assertEqual(ContactMessage.objects.count(), 0)
+
+    def test_cors_preflight_allows_contact_post(self):
+        response = self.client.options(
+            reverse('photo-api:contact'),
+            headers={'origin': 'http://localhost:5173'},
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertIn('POST', response['Access-Control-Allow-Methods'])

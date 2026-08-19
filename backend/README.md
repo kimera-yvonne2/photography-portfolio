@@ -45,6 +45,7 @@ while development mode is enabled.
 | `GET` | `/api/photos/` | All published photos |
 | `GET` | `/api/photos/?featured=true` | Published featured photos |
 | `GET` | `/api/photos/<id>/` | One published photo |
+| `POST` | `/api/contact/` | Submit a JSON enquiry (`name`, `email`, `subject`, `message`) |
 
 The photo list is ordered first by `display_order`, then by newest creation
 date. Draft photos never appear in the public API.
@@ -63,6 +64,7 @@ The settings read these optional environment variables:
 - `POSTGRES_HOST`
 - `POSTGRES_PORT`
 - `POSTGRES_CONN_MAX_AGE`
+- `CONTACT_RECIPIENT_EMAIL`
 
 Use `.env.example` as a reference. Environment files are not automatically
 loaded, so set the values in the hosting platform or shell. For production,

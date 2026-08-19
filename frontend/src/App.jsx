@@ -4,6 +4,7 @@ import './index.css'
 import { loadProfile } from './content'
 import StudioEditor from './pages/StudioEditor'
 import { getCustomPhotos, prepareBasePhotos } from './photoStore'
+import { getPhotos, submitContactMessage } from './api'
 
 const images = [
   ['IMG_8058_edited.jpg', 'City rhythm', 'Street'], ['IMG_8054_edited.jpg', 'Urban canvas', 'Street'], ['IMG_8053_edited.jpg', 'Under northern skies', 'Street'],
@@ -23,7 +24,6 @@ const images = [
   ['IMG_7736.jpg', 'Close encounter', 'Experiments'], ['IMG_7914.JPG', 'The eagle', 'Nightlife'],
 ].map(([file, title, category], id) => ({ id, file, title, category, src: `/${encodeURIComponent(file)}` }))
 
-const categories = ['All', 'Portraits', 'Street', 'Nightlife', 'Gatherings', 'Experiments']
 const categoryCovers = [
   { name: 'Portraits', image: 'IMG_7622_edited.jpg', note: 'People, presence & personality' },
   { name: 'Street', image: 'IMG_8058_edited.jpg', note: 'Architecture, movement & city life' },
@@ -41,9 +41,44 @@ function App() {
   const [active, setActive] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [portfolioImages, setPortfolioImages] = useState(() => prepareBasePhotos(images))
+  const [contact, setContact] = useState({ name: '', email: '', subject: 'Photography enquiry', message: '' })
+  const [contactStatus, setContactStatus] = useState('idle')
   const visible = useMemo(() => filter === 'All' ? portfolioImages : portfolioImages.filter((image) => image.category === filter), [filter, portfolioImages])
+  const categories = useMemo(() => ['All', ...new Set(portfolioImages.map((image) => image.category).filter(Boolean))], [portfolioImages])
+  const collections = useMemo(() => categories.slice(1).map((name) => {
+    const fallback = categoryCovers.find((collection) => collection.name === name)
+    const firstPhoto = portfolioImages.find((photo) => photo.category === name)
+    return {
+      name,
+      image: firstPhoto?.src || (fallback ? `/${encodeURIComponent(fallback.image)}` : ''),
+      note: fallback?.note || `${portfolioImages.filter((photo) => photo.category === name).length} photographs`,
+    }
+  }), [categories, portfolioImages])
 
-  useEffect(() => { getCustomPhotos().then((custom) => setPortfolioImages([...prepareBasePhotos(images), ...custom])).catch(() => {}) }, [])
+  useEffect(() => {
+    Promise.allSettled([getPhotos(), getCustomPhotos()]).then(([remoteResult, customResult]) => {
+      const remote = remoteResult.status === 'fulfilled' ? remoteResult.value.map((photo) => ({
+        ...photo,
+        id: `api-${photo.id}`,
+        src: photo.thumbnail || photo.image,
+        category: photo.category || 'Experiments',
+      })) : []
+      const local = customResult.status === 'fulfilled' ? customResult.value : []
+      setPortfolioImages([...(remote.length ? remote : prepareBasePhotos(images)), ...local])
+    })
+  }, [])
+
+  const sendEnquiry = async (event) => {
+    event.preventDefault()
+    setContactStatus('sending')
+    try {
+      await submitContactMessage(contact)
+      setContact({ name: '', email: '', subject: 'Photography enquiry', message: '' })
+      setContactStatus('sent')
+    } catch {
+      setContactStatus('error')
+    }
+  }
 
   const move = (direction) => {
     if (!active) return
@@ -107,8 +142,8 @@ function App() {
           {categories.map((category) => <button key={category} className={filter === category ? 'active' : ''} onClick={() => setFilter(category)}>{category}</button>)}
         </div>
         {filter === 'All' ? <div className="collection-grid">
-          {categoryCovers.map((collection, index) => <button className="collection-card" key={collection.name} onClick={() => setFilter(collection.name)}>
-            <img src={`/${encodeURIComponent(collection.image)}`} alt={`${collection.name} collection`} />
+          {collections.map((collection, index) => <button className="collection-card" key={collection.name} onClick={() => setFilter(collection.name)}>
+            <img src={collection.image} alt={`${collection.name} collection`} />
             <span className="collection-shade" />
             <span className="collection-copy"><i>0{index + 1} / Collection</i><strong>{collection.name}</strong><small>{collection.note}</small><b>View collection <Arrow /></b></span>
           </button>)}
@@ -153,7 +188,15 @@ function App() {
       <section className="contact" id="book">
         <p className="eyebrow">{profile.availability}</p>
         <h2>{profile.contactTitle}<br /><em>{profile.contactAccent}</em></h2>
-        <a href={`mailto:${profile.email}`} className="contact-link">{profile.email} <Arrow /></a>
+        <form className="contact-form" onSubmit={sendEnquiry}>
+          <label><span>Name</span><input required maxLength="100" value={contact.name} onChange={(event) => setContact({ ...contact, name: event.target.value })} /></label>
+          <label><span>Email</span><input required type="email" value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} /></label>
+          <label><span>Subject</span><input required maxLength="200" value={contact.subject} onChange={(event) => setContact({ ...contact, subject: event.target.value })} /></label>
+          <label className="contact-message"><span>Tell me about your plans</span><textarea required rows="5" value={contact.message} onChange={(event) => setContact({ ...contact, message: event.target.value })} /></label>
+          <button type="submit" disabled={contactStatus === 'sending'}>{contactStatus === 'sending' ? 'Sending...' : 'Send enquiry'} <Arrow /></button>
+          <p className="contact-feedback" aria-live="polite">{contactStatus === 'sent' ? 'Thank you. Your enquiry has been received.' : contactStatus === 'error' ? 'The enquiry could not be sent. Please try again.' : ''}</p>
+        </form>
+        <a href={`mailto:${profile.email}`} className="contact-email">Or email {profile.email}</a>
         <div className="contract-note" id="contract"><span>Ready for the details?</span><p>Once your date and scope are confirmed, request the photography agreement to review deliverables, usage, payment, and cancellation terms.</p><a href={`mailto:${profile.email}?subject=Photography contract request`}>Request contract <Arrow /></a></div>
       </section>
     </main>
