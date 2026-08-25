@@ -128,6 +128,8 @@ function App() {
       </section>
 
       <section className="manifesto" id="about">
+        <img className="manifesto-background" src="/pato-at-elland-road.jpeg" alt="" aria-hidden="true" />
+        <span className="manifesto-wash" aria-hidden="true" />
         <p className="section-no">01 / About the work</p>
         <div><p className="eyebrow accent">Behind the lens · {profile.photographerName}</p><h2>{profile.aboutTitle}<br /><em>{profile.aboutAccent}</em></h2></div>
         <p className="manifesto-copy">{profile.bio}</p>
