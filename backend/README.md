@@ -5,7 +5,7 @@ photo API and a private Django admin for managing the portfolio.
 
 ## Setup
 
-Create a PostgreSQL database first:
+For a local PostgreSQL database, create it first:
 
 ```sql
 CREATE DATABASE photography_portfolio;
@@ -20,6 +20,19 @@ $env:POSTGRES_PASSWORD = "your-postgres-password"
 $env:POSTGRES_HOST = "127.0.0.1"
 $env:POSTGRES_PORT = "5432"
 ```
+
+### Neon
+
+Copy the full connection string from the Neon dashboard into `backend/.env`.
+It must include `sslmode=require`; the settings automatically read its host,
+database, credentials, and TLS options.
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
+```
+
+Use [`.env.example`](.env.example) as the full configuration template. Do not
+split a Neon URL into the `POSTGRES_*` values or commit the `.env` file.
 
 Then install the dependencies and initialise Django:
 
@@ -64,13 +77,14 @@ The settings read these optional environment variables:
 - `POSTGRES_HOST`
 - `POSTGRES_PORT`
 - `POSTGRES_CONN_MAX_AGE`
+- `DATABASE_URL` (recommended for Neon; includes `sslmode=require`)
 - `CONTACT_RECIPIENT_EMAIL`
 
-Use `.env.example` as a reference. Environment files are not automatically
-loaded, so set the values in the hosting platform or shell. For production,
-use a strong secret key, disable debug mode, configure the deployed hosts and
-origins, and serve uploaded media from persistent object storage or a web
-server.
+Use `.env.example` as a reference. The backend automatically loads
+`backend/.env`; hosting platforms can instead provide the same values as
+environment variables. For production, use a strong secret key, disable debug
+mode, configure the deployed hosts and origins, and serve uploaded media from
+persistent object storage or a web server.
 
 ## Verification
 

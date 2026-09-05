@@ -11,6 +11,22 @@ from .models import Photo, Category, Album, ContactMessage, SiteProfile
 from .forms import ContactForm
 
 
+@require_GET
+def api_root(request):
+    """Describe the backend instead of attempting to render missing templates."""
+    return JsonResponse(
+        {
+            'name': 'Photography Portfolio API',
+            'status': 'ok',
+            'endpoints': {
+                'health': request.build_absolute_uri('/api/health/'),
+                'photos': request.build_absolute_uri('/api/photos/'),
+                'contact': request.build_absolute_uri('/api/contact/'),
+            },
+        }
+    )
+
+
 def serialize_photo(request, photo):
     return {
         'id': photo.pk,

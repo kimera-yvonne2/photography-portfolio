@@ -19,10 +19,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from photos import views
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('photos.api_urls')),
-    path('', include('photos.urls')),
+    path('', views.api_root, name='api-root'),
 ]
 
 if settings.DEBUG:

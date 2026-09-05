@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -86,17 +89,49 @@ ASGI_APPLICATION = 'portfolio_project.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'photography_portfolio'),
-        'USER': os.getenv('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
-        'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
-        'CONN_MAX_AGE': int(os.getenv('POSTGRES_CONN_MAX_AGE', '60')),
+def database_config():
+    """Build PostgreSQL settings from a Neon/DATABASE_URL or local variables."""
+    database_url = os.getenv('DATABASE_URL')
+    conn_max_age = int(os.getenv('POSTGRES_CONN_MAX_AGE', '60'))
+
+    if not database_url:
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'photography_portfolio'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+            'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'CONN_MAX_AGE': conn_max_age,
+        }
+
+    parsed = urlparse(database_url)
+    if parsed.scheme not in {'postgres', 'postgresql'} or not parsed.hostname or not parsed.path.strip('/'):
+        raise ImproperlyConfigured(
+            'DATABASE_URL must be a complete PostgreSQL connection URL. '
+            'Copy the URL from the Neon dashboard, including ?sslmode=require.'
+        )
+
+    # Neon places SSL and other connection settings in the URL query string.
+    # Passing them to psycopg preserves Neon\'s required TLS configuration.
+    options = {
+        key: values[-1]
+        for key, values in parse_qs(parsed.query, keep_blank_values=True).items()
     }
-}
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': unquote(parsed.path.lstrip('/')),
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname,
+        'PORT': str(parsed.port or 5432),
+        'OPTIONS': options,
+        'CONN_MAX_AGE': conn_max_age,
+        'CONN_HEALTH_CHECKS': True,
+    }
+
+
+DATABASES = {'default': database_config()}
 
 # Keep the test suite self-contained; normal development and production still
 # use PostgreSQL as configured above.
