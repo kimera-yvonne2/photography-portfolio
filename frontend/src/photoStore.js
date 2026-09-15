@@ -1,4 +1,5 @@
 const DB_NAME = 'shots-by-pato-studio'
+
 const STORE_NAME = 'custom-photos'
 export const PHOTO_SETTINGS_KEY = 'shots-by-pato-photo-settings'
 
