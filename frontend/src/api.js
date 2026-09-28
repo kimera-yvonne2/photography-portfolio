@@ -2,6 +2,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, ''
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
   })
@@ -20,4 +21,12 @@ export function getPhotos() {
 
 export function submitContactMessage(message) {
   return request('/contact/', { method: 'POST', body: JSON.stringify(message) })
+}
+
+export function getStudioSession() {
+  return request('/studio/session/')
+}
+
+export function signInToStudio(credentials) {
+  return request('/studio/login/', { method: 'POST', body: JSON.stringify(credentials) })
 }

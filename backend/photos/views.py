@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.core.mail import send_mail
+from django.contrib.auth import authenticate, login, logout
 from .models import Photo, Category, Album, ContactMessage, SiteProfile
 from .forms import ContactForm
 
@@ -54,6 +55,43 @@ def serialize_photo(request, photo):
 @require_GET
 def api_health(request):
     return JsonResponse({'status': 'ok'})
+
+
+@require_GET
+def api_studio_session(request):
+    """Report whether the current session belongs to a studio author."""
+    user = request.user
+    return JsonResponse({
+        'authenticated': user.is_authenticated,
+        'authorized': user.is_authenticated and user.is_staff,
+        'username': user.get_username() if user.is_authenticated and user.is_staff else '',
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_studio_login(request):
+    """Create a session for a staff user only."""
+    try:
+        payload = json.loads(request.body or '{}')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'detail': 'Invalid request.'}, status=400)
+
+    username = str(payload.get('username', '')).strip()
+    password = payload.get('password', '')
+    user = authenticate(request, username=username, password=password)
+    if user is None or not user.is_staff:
+        return JsonResponse({'detail': 'Invalid author credentials.'}, status=403)
+
+    login(request, user)
+    return JsonResponse({'authorized': True, 'username': user.get_username()})
+
+
+@csrf_exempt
+@require_POST
+def api_studio_logout(request):
+    logout(request)
+    return JsonResponse({'authorized': False})
 
 
 @require_GET

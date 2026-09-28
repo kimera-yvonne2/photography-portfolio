@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-export default function Lightbox({ photos, active, onClose, onMove }) {
+export default function Lightbox({ active, onClose, onMove }) {
   useEffect(() => {
     const keydown = (event) => {
       if (event.key === 'Escape') onClose()

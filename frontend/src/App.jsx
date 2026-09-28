@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import './index.css'
 import { loadProfile } from './content'
 import StudioEditor from './pages/StudioEditor'
 import { getCustomPhotos, prepareBasePhotos } from './photoStore'
-import { getPhotos, submitContactMessage } from './api'
+import { getPhotos, getStudioSession, signInToStudio, submitContactMessage } from './api'
 
 const images = [
   ['IMG_8058_edited.jpg', 'City rhythm', 'Street'], ['IMG_8054_edited.jpg', 'Urban canvas', 'Street'], ['IMG_8053_edited.jpg', 'Under northern skies', 'Street'],
@@ -24,37 +24,47 @@ const images = [
   ['IMG_7736.jpg', 'Close encounter', 'Experiments'], ['IMG_7914.JPG', 'The eagle', 'Nightlife'],
 ].map(([file, title, category], id) => ({ id, file, title, category, src: `/${encodeURIComponent(file)}` }))
 
-const categoryCovers = [
-  { name: 'Portraits', image: 'IMG_7622_edited.jpg', note: 'People, presence & personality' },
-  { name: 'Street', image: 'IMG_8058_edited.jpg', note: 'Architecture, movement & city life' },
-  { name: 'Nightlife', image: 'IMG_7933.JPG', note: 'After-dark portraits & energy' },
-  { name: 'Gatherings', image: 'IMG_7720.JPG', note: 'Friends, celebrations & connection' },
-  { name: 'Experiments', image: 'IMG_7739.JPG', note: 'Soft focus & playful studies' },
-]
-
 const Arrow = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M14 6l6 6-6 6" /></svg>
+
+function StudioAccess({ baseImages }) {
+  const [status, setStatus] = useState('checking')
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    getStudioSession()
+      .then((session) => setStatus(session.authorized ? 'authorized' : 'unauthorized'))
+      .catch(() => { setError('The studio sign-in service is unavailable.'); setStatus('unauthorized') })
+  }, [])
+
+  const signIn = async (event) => {
+    event.preventDefault()
+    setError('')
+    setStatus('signing-in')
+    try {
+      const session = await signInToStudio(credentials)
+      setStatus(session.authorized ? 'authorized' : 'unauthorized')
+      if (!session.authorized) setError('Invalid author credentials.')
+    } catch (requestError) {
+      setStatus('unauthorized')
+      setError(requestError.response?.detail || 'Invalid author credentials.')
+    }
+  }
+
+  if (status === 'authorized') return <StudioEditor baseImages={baseImages} />
+  return <main className="studio-login"><div className="studio-login-card"><Link to="/" className="studio-login-back">← Back to portfolio</Link><p>Private area</p><h1>Studio sign in</h1><span>Only the photographer’s staff account can access the editor.</span>{status === 'checking' ? <p className="studio-login-status">Checking access…</p> : <form onSubmit={signIn}><label>Username<input required autoComplete="username" value={credentials.username} onChange={(event) => setCredentials({ ...credentials, username: event.target.value })} /></label><label>Password<input required type="password" autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials({ ...credentials, password: event.target.value })} /></label>{error && <p className="studio-login-error" role="alert">{error}</p>}<button type="submit" disabled={status === 'signing-in'}>{status === 'signing-in' ? 'Signing in…' : 'Sign in'}</button></form>}</div></main>
+}
 
 function App() {
   const { pathname } = useLocation()
   const [profile] = useState(loadProfile)
   const [filter, setFilter] = useState('All')
   const [active, setActive] = useState(null)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [portfolioImages, setPortfolioImages] = useState(() => prepareBasePhotos(images))
   const [contact, setContact] = useState({ name: '', email: '', subject: 'Photography enquiry', message: '' })
   const [contactStatus, setContactStatus] = useState('idle')
   const visible = useMemo(() => filter === 'All' ? portfolioImages : portfolioImages.filter((image) => image.category === filter), [filter, portfolioImages])
   const categories = useMemo(() => ['All', ...new Set(portfolioImages.map((image) => image.category).filter(Boolean))], [portfolioImages])
-  const collections = useMemo(() => categories.slice(1).map((name) => {
-    const fallback = categoryCovers.find((collection) => collection.name === name)
-    const firstPhoto = portfolioImages.find((photo) => photo.category === name)
-    return {
-      name,
-      image: firstPhoto?.src || (fallback ? `/${encodeURIComponent(fallback.image)}` : ''),
-      note: fallback?.note || `${portfolioImages.filter((photo) => photo.category === name).length} photographs`,
-    }
-  }), [categories, portfolioImages])
-
   useEffect(() => {
     Promise.allSettled([getPhotos(), getCustomPhotos()]).then(([remoteResult, customResult]) => {
       const remote = remoteResult.status === 'fulfilled' ? remoteResult.value.map((photo) => ({
@@ -97,121 +107,19 @@ function App() {
     return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll') }
   })
 
-  if (pathname === '/studio' || pathname === '/editor') return <StudioEditor baseImages={images} />
+  if (pathname === '/studio' || pathname === '/editor') return <StudioAccess baseImages={images} />
 
-  return <div className="site-shell" id="top">
-    <header className="nav-wrap">
-      <a className="brand" href="#top"><span className="brand-mark">{profile.initials}</span><span>{profile.brandName}</span></a>
-      <nav className={menuOpen ? 'nav-links open' : 'nav-links'} aria-label="Main navigation">
-        <a href="#top" onClick={() => setMenuOpen(false)}>Work</a>
-        <a href="#collections" onClick={() => setMenuOpen(false)}>Collections</a>
-        <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
-        <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
-        <a href="#testimonials" onClick={() => setMenuOpen(false)}>Testimonials</a>
-        <a className="nav-book" href="#book" onClick={() => setMenuOpen(false)}>Book</a>
-        <a href="#contract" onClick={() => setMenuOpen(false)}>Contract</a>
-      </nav>
-      <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu"><span /><span /></button>
-    </header>
+  const nav = <header className="portfolio-nav"><Link className="portfolio-brand" to="/"><span>{profile.initials}</span>{profile.brandName}</Link><nav aria-label="Main navigation"><Link to="/" className={pathname === '/' ? 'active' : ''}>Home</Link><Link to="/gallery" className={pathname === '/gallery' ? 'active' : ''}>Gallery</Link><Link to="/about" className={pathname === '/about' ? 'active' : ''}>About</Link><Link to="/contact" className={pathname === '/contact' ? 'active' : ''}>Contact</Link></nav></header>
+  const footer = <footer className="portfolio-footer"><span>{profile.brandName}</span><span>© {new Date().getFullYear()}</span><span>{profile.locations}</span></footer>
+  const gallery = <div className="masonry-grid">{visible.map((image, index) => <button className={`masonry-item item-${index % 7}`} key={image.id} onClick={() => setActive(image)} aria-label={`Open ${image.title}`}><img src={image.src} alt={image.title} loading={index < 5 ? 'eager' : 'lazy'} /><span>{image.title}</span></button>)}</div>
 
-    <main>
-      <section className="hero">
-        <img src="/IMG_8058_edited.jpg" alt="Black and white Leeds street scene" />
-        <div className="hero-wash" />
-        <div className="hero-copy">
-          <p className="eyebrow">{profile.heroEyebrow}</p>
-          <h1>{profile.heroTitle}<br /><em>{profile.heroAccent}</em></h1>
-          <p className="hero-note">{profile.heroDescription}</p>
-          <a className="text-link light" href="#collections">Explore the archive <Arrow /></a>
-        </div>
-        <div className="hero-side">{profile.locations}</div>
-      </section>
+  let page
+  if (pathname === '/gallery') page = <><section className="page-heading"><p>Selected archive</p><h1>The work.</h1><span>{visible.length.toString().padStart(2, '0')} photographs</span></section><div className="filter-pills" role="group" aria-label="Filter photographs">{categories.map((category) => <button key={category} className={filter === category ? 'active' : ''} onClick={() => setFilter(category)}>{category}</button>)}</div>{gallery}</>
+  else if (pathname === '/about') page = <section className="about-page"><div className="about-portrait"><img src="/pato-at-elland-road.jpeg" alt={`${profile.photographerName} at Elland Road`} /></div><div className="about-copy"><p>Behind the lens · {profile.photographerName}</p><h1>{profile.aboutTitle}<em>{profile.aboutAccent}</em></h1><p className="about-bio">{profile.bio}</p><div className="kit-row"><article><span>01</span><strong>Portraiture</strong><small>Stories with character</small></article><article><span>02</span><strong>Documentary</strong><small>Life as it unfolds</small></article></div></div></section>
+  else if (pathname === '/contact') page = <section className="contact-page"><div><p>{profile.availability}</p><h1>{profile.contactTitle}<em>{profile.contactAccent}</em></h1><form className="enquiry-form" onSubmit={sendEnquiry}><label>Name<input required maxLength="100" value={contact.name} onChange={(event) => setContact({ ...contact, name: event.target.value })} /></label><label>Email<input required type="email" value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} /></label><label>Subject<input required maxLength="200" value={contact.subject} onChange={(event) => setContact({ ...contact, subject: event.target.value })} /></label><label>Tell me about your plans<textarea required rows="5" value={contact.message} onChange={(event) => setContact({ ...contact, message: event.target.value })} /></label><button type="submit" disabled={contactStatus === 'sending'}>{contactStatus === 'sending' ? 'Sending…' : 'Send enquiry'} <Arrow /></button><p aria-live="polite">{contactStatus === 'sent' ? 'Thank you. Your enquiry has been received.' : contactStatus === 'error' ? 'The enquiry could not be sent. Please try again.' : ''}</p></form></div><aside className="contact-info"><span>Get in touch</span><a href={`mailto:${profile.email}`}>{profile.email}</a><p>{profile.locations}</p><p>For portraits, events, commissions, and thoughtful stories.</p></aside></section>
+  else page = <section className="home-hero"><img src="/IMG_8058_edited.jpg" alt="Black and white Leeds street scene" /><span className="home-hero-wash" aria-hidden="true" /><div className="home-hero-copy"><p>{profile.heroEyebrow}</p><h1>SHOTS <em>BY PATO</em></h1><span>{profile.heroDescription}</span><Link to="/gallery">Explore the archive <Arrow /></Link></div></section>
 
-      <section className="manifesto" id="about">
-        <img className="manifesto-background" src="/pato-at-elland-road.jpeg" alt="" aria-hidden="true" />
-        <span className="manifesto-wash" aria-hidden="true" />
-        <p className="section-no">01 / About the work</p>
-        <div><p className="eyebrow accent">Behind the lens · {profile.photographerName}</p><h2>{profile.aboutTitle}<br /><em>{profile.aboutAccent}</em></h2></div>
-        <p className="manifesto-copy">{profile.bio}</p>
-      </section>
-
-      <section className="portfolio" id="collections">
-        <div className="portfolio-head">
-          <div><p className="eyebrow accent">02 / Selected archive</p><h2>The work</h2></div>
-          <p>{filter === 'All' ? 'Choose a collection' : `${visible.length.toString().padStart(2, '0')} photographs`}</p>
-        </div>
-        <div className="filters" role="group" aria-label="Filter photographs">
-          {categories.map((category) => <button key={category} className={filter === category ? 'active' : ''} onClick={() => setFilter(category)}>{category}</button>)}
-        </div>
-        {filter === 'All' ? <div className="collection-grid">
-          {collections.map((collection, index) => <button className="collection-card" key={collection.name} onClick={() => setFilter(collection.name)}>
-            <img src={collection.image} alt={`${collection.name} collection`} />
-            <span className="collection-shade" />
-            <span className="collection-copy"><i>0{index + 1} / Collection</i><strong>{collection.name}</strong><small>{collection.note}</small><b>View collection <Arrow /></b></span>
-          </button>)}
-        </div> : <>
-          <button className="back-to-collections" onClick={() => setFilter('All')}>← Back to collections</button>
-          <div className="gallery">
-            {visible.map((image, index) => <button className={`gallery-item item-${index % 7}`} key={image.id} onClick={() => setActive(image)} aria-label={`Open ${image.title}`}>
-              <img src={image.src} alt={image.title} loading={index < 5 ? 'eager' : 'lazy'} />
-              <span className="image-caption"><i>{image.category}</i><strong>{image.title}</strong></span>
-            </button>)}
-          </div>
-        </>}
-      </section>
-
-      <section className="pricing" id="pricing">
-        <div className="pricing-head"><p className="eyebrow accent">03 / Investment</p><h2>Choose your<br /><em>kind of story.</em></h2><p>Every session is shaped around you. These starting points can be tailored to the scale, location, and rhythm of your plans.</p></div>
-        <div className="pricing-grid">
-          <article><span>01</span><h3>Portraits</h3><p>Individual, couple, graduation, or creative portrait sessions in a location that feels like you.</p><strong>From £150</strong><a href="#book">Enquire <Arrow /></a></article>
-          <article><span>02</span><h3>Events</h3><p>Natural, energetic coverage of celebrations, dinners, launches, and the people who make them matter.</p><strong>From £300</strong><a href="#book">Enquire <Arrow /></a></article>
-          <article><span>03</span><h3>Commissions</h3><p>Editorial, brand, travel, and longer-form stories built around a considered creative brief.</p><strong>Custom quote</strong><a href="#book">Start a brief <Arrow /></a></article>
-        </div>
-      </section>
-
-      <section className="testimonials" id="testimonials">
-        <div className="testimonials-head">
-          <p className="eyebrow accent">04 / Client notes</p>
-          <h2>Kind words from<br /><em>behind the photographs.</em></h2>
-        </div>
-        <div className="testimonial-grid">
-          {[
-            [profile.testimonial1Quote, profile.testimonial1Name, profile.testimonial1Service],
-            [profile.testimonial2Quote, profile.testimonial2Name, profile.testimonial2Service],
-            [profile.testimonial3Quote, profile.testimonial3Name, profile.testimonial3Service],
-          ].map(([quote, name, service], index) => <blockquote className="testimonial-card" key={name}>
-            <span>0{index + 1}</span>
-            <p>“{quote}”</p>
-            <footer><strong>{name}</strong><small>{service}</small></footer>
-          </blockquote>)}
-        </div>
-      </section>
-
-      <section className="contact" id="book">
-        <p className="eyebrow">{profile.availability}</p>
-        <h2>{profile.contactTitle}<br /><em>{profile.contactAccent}</em></h2>
-        <form className="contact-form" onSubmit={sendEnquiry}>
-          <label><span>Name</span><input required maxLength="100" value={contact.name} onChange={(event) => setContact({ ...contact, name: event.target.value })} /></label>
-          <label><span>Email</span><input required type="email" value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} /></label>
-          <label><span>Subject</span><input required maxLength="200" value={contact.subject} onChange={(event) => setContact({ ...contact, subject: event.target.value })} /></label>
-          <label className="contact-message"><span>Tell me about your plans</span><textarea required rows="5" value={contact.message} onChange={(event) => setContact({ ...contact, message: event.target.value })} /></label>
-          <button type="submit" disabled={contactStatus === 'sending'}>{contactStatus === 'sending' ? 'Sending...' : 'Send enquiry'} <Arrow /></button>
-          <p className="contact-feedback" aria-live="polite">{contactStatus === 'sent' ? 'Thank you. Your enquiry has been received.' : contactStatus === 'error' ? 'The enquiry could not be sent. Please try again.' : ''}</p>
-        </form>
-        <a href={`mailto:${profile.email}`} className="contact-email">Or email {profile.email}</a>
-        <div className="contract-note" id="contract"><span>Ready for the details?</span><p>Once your date and scope are confirmed, request the photography agreement to review deliverables, usage, payment, and cancellation terms.</p><a href={`mailto:${profile.email}?subject=Photography contract request`}>Request contract <Arrow /></a></div>
-      </section>
-    </main>
-
-    <footer><a className="brand" href="#top"><span className="brand-mark">{profile.initials}</span><span>{profile.brandName}</span></a><span>© {new Date().getFullYear()}</span><span>{profile.locations}</span></footer>
-
-    {active && <div className="lightbox" role="dialog" aria-modal="true" aria-label={active.title} onClick={() => setActive(null)}>
-      <button className="lightbox-close" onClick={() => setActive(null)} aria-label="Close">Close ×</button>
-      <button className="lightbox-arrow prev" onClick={(event) => { event.stopPropagation(); move(-1) }} aria-label="Previous photograph">←</button>
-      <figure onClick={(event) => event.stopPropagation()}><img src={active.src} alt={active.title} /><figcaption><span>{active.category}</span><strong>{active.title}</strong></figcaption></figure>
-      <button className="lightbox-arrow next" onClick={(event) => { event.stopPropagation(); move(1) }} aria-label="Next photograph">→</button>
-    </div>}
-  </div>
+  return <div className={`portfolio-view ${pathname === '/' ? 'home-view' : ''}`}>{nav}<main className={`portfolio-main ${pathname === '/' ? 'home-page' : ''}`}>{page}</main>{footer}{active && <div className="lightbox" role="dialog" aria-modal="true" aria-label={active.title} onClick={() => setActive(null)}><button className="lightbox-close" onClick={() => setActive(null)} aria-label="Close">Close ×</button><button className="lightbox-arrow prev" onClick={(event) => { event.stopPropagation(); move(-1) }} aria-label="Previous photograph">←</button><figure onClick={(event) => event.stopPropagation()}><img src={active.src} alt={active.title} /><figcaption><span>{active.category}</span><strong>{active.title}</strong></figcaption></figure><button className="lightbox-arrow next" onClick={(event) => { event.stopPropagation(); move(1) }} aria-label="Next photograph">→</button></div>}</div>
 }
 
 export default App

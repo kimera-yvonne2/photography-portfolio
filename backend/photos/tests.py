@@ -1,6 +1,7 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.contrib.auth import get_user_model
 
 from .models import ContactMessage, Photo
 
@@ -86,3 +87,33 @@ class ContactApiTests(TestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertIn('POST', response['Access-Control-Allow-Methods'])
+
+
+class StudioAuthApiTests(TestCase):
+    def test_staff_user_can_sign_in_to_studio(self):
+        user = get_user_model().objects.create_user(
+            username='pato', password='safe-password', is_staff=True,
+        )
+
+        response = self.client.post(
+            reverse('photo-api:studio-login'),
+            data={'username': user.username, 'password': 'safe-password'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['authorized'])
+        session = self.client.get(reverse('photo-api:studio-session'))
+        self.assertTrue(session.json()['authorized'])
+
+    def test_non_staff_user_cannot_sign_in_to_studio(self):
+        get_user_model().objects.create_user(username='visitor', password='safe-password')
+
+        response = self.client.post(
+            reverse('photo-api:studio-login'),
+            data={'username': 'visitor', 'password': 'safe-password'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(self.client.get(reverse('photo-api:studio-session')).json()['authorized'])
