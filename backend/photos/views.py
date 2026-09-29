@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.shortcuts import render, get_object_or_404
 from django.conf import settings
@@ -7,9 +8,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from django.contrib.auth import authenticate, login, logout
 from .models import Photo, Category, Album, ContactMessage, SiteProfile
 from .forms import ContactForm
+
+
+logger = logging.getLogger(__name__)
 
 
 @require_GET
@@ -132,17 +137,32 @@ def api_contact(request):
         return JsonResponse({'errors': form.errors.get_json_data()}, status=400)
 
     contact_message = form.save()
-    send_mail(
-        subject=f"Portfolio enquiry: {contact_message.subject}",
-        message=(
-            f"From: {contact_message.name} <{contact_message.email}>\n\n"
-            f"{contact_message.message}"
-        ),
-        from_email=None,
-        recipient_list=[settings.CONTACT_RECIPIENT_EMAIL],
-        fail_silently=True,
+    notification_sent = False
+    if settings.EMAIL_NOTIFICATIONS_ENABLED:
+        try:
+            EmailMessage(
+                subject=f"Portfolio enquiry: {contact_message.subject}",
+                body=(
+                    f"From: {contact_message.name} <{contact_message.email}>\n\n"
+                    f"{contact_message.message}"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[settings.CONTACT_RECIPIENT_EMAIL],
+                reply_to=[contact_message.email],
+            ).send(fail_silently=False)
+            notification_sent = True
+        except Exception:
+            # Keep the enquiry in the database even if the mail provider is down.
+            logger.exception('Unable to send enquiry notification for message %s', contact_message.pk)
+
+    return JsonResponse(
+        {
+            'status': 'ok',
+            'id': contact_message.pk,
+            'notification_sent': notification_sent,
+        },
+        status=201,
     )
-    return JsonResponse({'status': 'ok', 'id': contact_message.pk}, status=201)
 
 def home(request):
     featured_photos = Photo.objects.filter(is_featured=True, is_published=True).order_by('-created_at')[:5]

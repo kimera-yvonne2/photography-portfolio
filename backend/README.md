@@ -79,12 +79,21 @@ The settings read these optional environment variables:
 - `POSTGRES_CONN_MAX_AGE`
 - `DATABASE_URL` (recommended for Neon; includes `sslmode=require`)
 - `CONTACT_RECIPIENT_EMAIL`
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+- `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`
 
 Use `.env.example` as a reference. The backend automatically loads
 `backend/.env`; hosting platforms can instead provide the same values as
 environment variables. For production, use a strong secret key, disable debug
 mode, configure the deployed hosts and origins, and serve uploaded media from
 persistent object storage or a web server.
+
+## Enquiry email notifications
+
+Set the `EMAIL_*` values in `.env` with your SMTP provider details. Gmail users
+should use `smtp.gmail.com`, port `587`, TLS, and a Google app password rather
+than their normal account password. Enquiries are always saved to the database;
+if SMTP is unavailable, the API records the enquiry and logs the delivery error.
 
 ## Verification
 

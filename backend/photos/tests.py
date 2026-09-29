@@ -1,5 +1,7 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core import mail
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
@@ -87,6 +89,30 @@ class ContactApiTests(TestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertIn('POST', response['Access-Control-Allow-Methods'])
+
+    @override_settings(
+        EMAIL_NOTIFICATIONS_ENABLED=True,
+        EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+        DEFAULT_FROM_EMAIL='studio@example.com',
+        CONTACT_RECIPIENT_EMAIL='pato@example.com',
+    )
+    def test_valid_message_sends_email_notification_when_configured(self):
+        response = self.client.post(
+            reverse('photo-api:contact'),
+            data={
+                'name': 'Amina',
+                'email': 'amina@example.com',
+                'subject': 'Portrait session',
+                'message': 'I would like to discuss a session in Kampala.',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json()['notification_sent'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['pato@example.com'])
+        self.assertEqual(mail.outbox[0].reply_to, ['amina@example.com'])
 
 
 class StudioAuthApiTests(TestCase):

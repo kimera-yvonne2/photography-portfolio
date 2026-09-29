@@ -185,6 +185,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CONTACT_RECIPIENT_EMAIL = os.getenv('CONTACT_RECIPIENT_EMAIL', 'hello@shotsbypato.com')
 
+# Enquiry notifications. Supply these values in .env using the SMTP settings
+# from your email provider; application passwords should be used where offered.
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend'
+)
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() in {'1', 'true', 'yes'}
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or CONTACT_RECIPIENT_EMAIL)
+EMAIL_NOTIFICATIONS_ENABLED = bool(EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
+
 CORS_ALLOWED_ORIGINS = {
     origin.strip()
     for origin in os.getenv(
